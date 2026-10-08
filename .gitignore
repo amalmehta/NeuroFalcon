@@ -7,3 +7,4 @@ results/harness/
 preds_*.pkl
 .DS_Store
 .claude/
+*.egg-info/
