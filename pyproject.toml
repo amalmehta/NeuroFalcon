@@ -1,0 +1,25 @@
+[project]
+name = "neurofalcon"
+version = "0.1.0"
+description = "Neuro Falcon: FALCON M2 finger-decoding plumbing and a zero-shot Wiener baseline"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "falcon-challenge @ git+https://github.com/snel-repo/falcon-challenge@770c9b9597b8f58bf67b5a9ec6401ef705a2cb0f",
+    "numpy<2",          # torch 2.2.2 (last Intel-Mac wheel) is built against numpy 1.x
+    "pynwb",
+    "h5py",
+    "remfile",
+    "requests",
+    "scikit-learn",
+    "matplotlib",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.setuptools]
+packages = ["neurofalcon"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::UserWarning", "ignore::DeprecationWarning"]

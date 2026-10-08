@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+data/
+results/harness/
+preds_*.pkl
+.DS_Store
+.claude/
