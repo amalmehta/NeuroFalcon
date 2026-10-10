@@ -10,6 +10,9 @@ local zero-shot number; the official held-out eval files live only on EvalAI.
 """
 from __future__ import annotations
 
+import contextlib
+import io
+import logging
 import os
 from collections import defaultdict
 from pathlib import Path
@@ -20,15 +23,18 @@ from sklearn.metrics import r2_score
 from falcon_challenge.evaluator import FalconEvaluator
 from falcon_challenge.interface import BCIDecoder
 
-from neurofalcon.download import DATA_ROOT
-from neurofalcon.sessions import CONFIG
+from neurofalcon.sessions import CONFIG, DATA_ROOT
 
 RESULTS = Path(__file__).resolve().parent.parent / "results"
+
+# The harness logs at INFO and prints file lists and result dicts; keep only warnings.
+logging.getLogger("falcon_challenge.evaluator").setLevel(logging.WARNING)
 
 
 def score(decoder: BCIDecoder, paths: Sequence[Path]) -> dict:
     ev = FalconEvaluator(eval_remote=False, split="m2", dataloader_workers=0)
-    preds, targets, masks, _, _ = ev.predict_files(decoder, list(paths))
+    with contextlib.redirect_stdout(io.StringIO()):
+        preds, targets, masks, _, _ = ev.predict_files(decoder, list(paths))
     # Same ordering the harness uses: by date, then run.
     keys = sorted(preds, key=lambda k: (k.split("_")[1], k))
     lens = defaultdict(list)
@@ -56,5 +62,6 @@ def minival(decoder: BCIDecoder) -> dict:
     os.environ["PREDICTION_PATH_LOCAL"] = str(out / "minival_prediction.pkl")
     os.environ["GT_PATH"] = str(out / "minival_gt.pkl")
     ev = FalconEvaluator(eval_remote=False, split="m2", dataloader_workers=0)
-    result = ev.evaluate(decoder, phase="minival")
+    with contextlib.redirect_stdout(io.StringIO()):
+        result = ev.evaluate(decoder, phase="minival")
     return {k: float(v) for k, v in result["submission_result"]["minival_split_m2"].items()}

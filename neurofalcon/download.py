@@ -16,11 +16,11 @@ import requests
 import h5py
 from pynwb import NWBHDF5IO
 
-DANDISET = "000953"
+from neurofalcon.sessions import DANDISET, DATA_ROOT
+
 API = "https://api.dandiarchive.org/api"
 SPLITS = ("held-in-calib", "held-out-calib", "held-in-minival")
 DROP = ("fullband",)
-DATA_ROOT = Path(__file__).resolve().parent.parent / "data"
 
 
 def list_assets() -> list[dict]:

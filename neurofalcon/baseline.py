@@ -34,7 +34,9 @@ def chart(result: dict) -> None:
     ink, muted, blue, surface = "#0b0b0b", "#52514e", "#2a78d6", "#fcfcfb"
     fig, ax = plt.subplots(figsize=(7, 3.6), dpi=150, facecolor=surface)
     ax.set_facecolor(surface)
-    ax.bar([str(v) for v in x], y, width=0.55, color=blue, zorder=2)
+    pos = range(len(x))
+    ax.bar(pos, y, width=0.55, color=blue, zorder=2)
+    ax.set_xticks(pos, [str(v) for v in x])
     ax.axhline(held_in, color=muted, lw=1, ls="--", zorder=1)
     ax.text(len(x) - 0.5, held_in, f"held-in minival {held_in:.2f}", ha="right", va="bottom",
             color=muted, fontsize=8)

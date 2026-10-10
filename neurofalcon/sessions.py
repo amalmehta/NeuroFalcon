@@ -12,9 +12,10 @@ import numpy as np
 from falcon_challenge.config import FalconConfig, FalconTask
 from falcon_challenge.dataloaders import load_nwb
 
-from neurofalcon.download import DANDISET, DATA_ROOT
 
 CONFIG = FalconConfig(task=FalconTask.m2)  # 96 channels, 2 outputs, 20 ms bins
+DANDISET = "000953"
+DATA_ROOT = Path(__file__).resolve().parent.parent / "data"
 
 
 @dataclass

@@ -13,7 +13,9 @@ means nothing is refit or renormalised on held-out days.
 Defaults: history=10 bins (200 ms). On a within-run 80/20 split of held-in
 data, R² was 0.10 / 0.26 / 0.30 / 0.32 for 1 / 5 / 10 / 20 bins, and ridge
 strength from 1 to 1e4 changed it by under 0.002, so alpha is fixed rather
-than cross-validated.
+than cross-validated. With little data (recalibration budgets of a few
+seconds) that no longer holds, so `alpha=None` picks it from ALPHAS on a
+time-ordered split: fit on the first 80% of the bins, score the last 20%.
 """
 from __future__ import annotations
 
@@ -24,6 +26,8 @@ import numpy as np
 from falcon_challenge.interface import BCIDecoder
 
 from neurofalcon.sessions import CONFIG, Run
+
+ALPHAS = np.logspace(0, 6, 13)
 
 
 
@@ -37,7 +41,7 @@ def lagged(z: np.ndarray, history: int) -> np.ndarray:
 
 
 class WienerFilter:
-    def __init__(self, history: int = 10, alpha: float = 100.0):
+    def __init__(self, history: int = 10, alpha: float | None = 100.0):
         self.history = history
         self.alpha = alpha
 
@@ -48,12 +52,26 @@ class WienerFilter:
         self.std[self.std == 0] = 1.0
         X = np.concatenate([lagged(self._z(r.spikes), self.history)[r.eval_mask] for r in runs])
         y = np.concatenate([r.velocity[r.eval_mask] for r in runs])
-        # Closed-form ridge on centred data, so the intercept isn't penalised.
+        if self.alpha is None:
+            self.alpha = self._pick_alpha(X, y)
+        self.coef, self.intercept = self._ridge(X, y, self.alpha)  # (history*C, 2), (2,)
+        return self
+
+    @staticmethod
+    def _ridge(X, y, alpha):
+        """Closed-form ridge on centred data, so the intercept isn't penalised."""
         x_bar, y_bar = X.mean(0), y.mean(0)
         Xc = X - x_bar
-        self.coef = np.linalg.solve(Xc.T @ Xc + self.alpha * np.eye(X.shape[1]), Xc.T @ (y - y_bar))  # (history*C, 2)
-        self.intercept = y_bar - x_bar @ self.coef  # (2,)
-        return self
+        coef = np.linalg.solve(Xc.T @ Xc + alpha * np.eye(X.shape[1]), Xc.T @ (y - y_bar))
+        return coef, y_bar - x_bar @ coef
+
+    def _pick_alpha(self, X, y) -> float:
+        n = int(0.8 * len(X))
+        def r2(a):
+            coef, b = self._ridge(X[:n], y[:n], a)
+            err = ((X[n:] @ coef + b - y[n:]) ** 2).sum()
+            return 1 - err / ((y[n:] - y[n:].mean(0)) ** 2).sum()
+        return float(max(ALPHAS, key=r2))
 
     def _z(self, spikes: np.ndarray) -> np.ndarray:
         return (spikes - self.mean) / self.std

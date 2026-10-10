@@ -45,3 +45,11 @@ def test_prediction_ignores_future_bins():
     changed = run.spikes.copy()
     changed[100:] = 0
     assert np.allclose(wf.predict(run.spikes)[:100], wf.predict(changed)[:100])
+
+
+def test_alpha_search_prefers_strong_ridge_on_noise():
+    rng = np.random.default_rng(0)
+    run = synthetic_run(T=400)
+    run.velocity[:] = rng.normal(size=run.velocity.shape)  # nothing to learn
+    wf = WienerFilter(history=4, alpha=None).fit([run])
+    assert wf.alpha >= 1e4

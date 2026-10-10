@@ -38,16 +38,52 @@ The output goes to `results/baseline.json` and `results/Zero-Shot Wiener by Day.
 
 The data tests skip until the download has run.
 
-## Your parts
+## Day 2: GRU decoder (about 5 minutes)
 
-`neurofalcon/gru.py`, `recalibration.py` and `ablation.py` are contracts only; their docstrings say what the harness expects. Score your work the same way the baseline is scored:
+```bash
+.venv/bin/python -m neurofalcon.gru
+```
+
+This pretrains 3 seeds on the held-in runs, saves them to `models/`, and scores each one the same way as the baseline. The output goes to `results/gru.json`. Saved models are reused; add `--retrain` to train again.
+
+## Day 2: Recalibration curve (about 2 hours on a busy laptop CPU)
+
+```bash
+.venv/bin/python -m neurofalcon.recalibration
+```
+
+For each held-out day it adapts the pretrained GRUs on 2.5, 5, 10 and 20 s of that day's labelled data and scores R² on the half of each run it never adapted on. The output goes to `results/recalibration.json` and `results/Recalibration Curve.png`.
+
+## Day 3: Ablation (seconds)
+
+```bash
+.venv/bin/python -m neurofalcon.ablation
+```
+
+This turns the recalibration results into a table of which part of the model has to change: nothing, input statistics only, input layer, readout, all weights, or no pretraining. The output goes to `results/Ablation.md`.
+
+## Score any decoder
 
 ```python
 from neurofalcon import scoring, sessions
-scoring.score(my_decoder, sessions.files("held-out-calib"))
-scoring.minival(my_decoder)
+scoring.score(my_decoder, sessions.files("held-out-calib"))   # zero-shot, harness metric
+scoring.minival(my_decoder)                                     # official local evaluation
 ```
+
+`my_decoder` is anything that implements the harness's `BCIDecoder` (see `wiener.WienerDecoder` and `gru.GRUDecoder`).
 
 ## Leaderboard submission
 
-Not set up yet. EvalAI takes a Docker image that runs the decoder against hidden eval files. See the harness's `decoder_demos/*.Dockerfile` and `docker_notes.md`.
+1. Build the model file. It contains one network per held-out day, recalibrated on that day's calibration data:
+   ```bash
+   .venv/bin/python -m neurofalcon.submission --method renorm
+   ```
+2. Check it locally through the harness, outside Docker:
+   ```bash
+   EVAL_DATA_PATH=data .venv/bin/python submission/decode.py --evaluation local --phase minival
+   ```
+3. Build and push the image. This needs Docker running and about 10 GB free, for the PyTorch base image:
+   ```bash
+   docker build -f submission/Dockerfile -t neurofalcon-m2 .
+   ```
+   Then follow the EvalAI challenge page's "Submit" tab (`evalai push neurofalcon-m2:latest --phase <phase-name>`), using your own account.
