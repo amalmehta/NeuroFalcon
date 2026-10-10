@@ -5,7 +5,7 @@
     "ridge_alpha": 100.0
   },
   "minival": {
-    "Normalized Latency": 0.01148385180917621,
+    "Normalized Latency": 0.0037116419549747697,
     "Held In R2 Mean": 0.1341921708925617,
     "Held In R2 Std.": 0.11866607272363913
   },
