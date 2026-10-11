@@ -44,15 +44,15 @@ The data tests skip until the download has run.
 .venv/bin/python -m neurofalcon.gru
 ```
 
-This pretrains 3 seeds on the held-in runs, saves them to `models/`, and scores each one the same way as the baseline. The output goes to `results/gru.json`. Saved models are reused; add `--retrain` to train again.
+This pretrains 5 seeds on the held-in runs, saves them to `models/`, and scores each one the same way as the baseline. The output goes to `results/gru.json`. Saved models are reused; add `--retrain` to train again.
 
-## Day 2: Recalibration curve (about 2 hours on a busy laptop CPU)
+## Day 2: Recalibration curve (about 3 hours on a busy laptop CPU)
 
 ```bash
 .venv/bin/python -m neurofalcon.recalibration
 ```
 
-For each held-out day it adapts the pretrained GRUs on 2.5, 5, 10 and 20 s of that day's labelled data and scores R² on the half of each run it never adapted on. The output goes to `results/recalibration.json` and `results/Recalibration Curve.png`.
+For each held-out day it adapts the pretrained GRUs on 2.5, 5, 10 and 20 s of that day's labelled data and scores R² on the half of each run it never adapted on. It checkpoints after every result, and re-running it only computes missing ones (`--fresh` recomputes everything). The output goes to `results/recalibration.json` and `results/Recalibration Curve.png`.
 
 ## Day 3: Ablation (seconds)
 

@@ -21,7 +21,7 @@ Neuro_falcon/
 │   ├── test_recalibration.py adaptation/test split is disjoint, budgets, day grouping
 │   └── test_data.py          slim files present, self-contained, load correctly
 ├── models/
-│   └── GRU held-in seed {0,1,2}.pt   pretrained GRUs (93 KB each)
+│   └── GRU held-in seed {0..4}.pt    pretrained GRUs (93 KB each)
 ├── submission/
 │   ├── Dockerfile            EvalAI image (follows the harness template)
 │   ├── decode.py             runfile the image executes
@@ -37,6 +37,7 @@ Neuro_falcon/
 ├── data/                     downloaded NWB files (git-ignored)
 │   └── 000953/sub-MonkeyN-{held-in-calib,held-out-calib,held-in-minival}/
 └── docs/
+    ├── Writeup.md            one-page writeup of the study
     ├── INSTRUCTIONS.md       setup, run, use
     ├── SYSTEM-DESIGN.md      architecture, flows, decisions, limits
     └── FILE-STRUCTURE.md     this file

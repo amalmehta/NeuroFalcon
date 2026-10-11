@@ -1,6 +1,6 @@
 """Day 2: GRU decoder.
 
-    python -m neurofalcon.gru     # pretrain 3 seeds, save to models/, score like the baseline
+    python -m neurofalcon.gru     # pretrain 5 seeds, save to models/, score like the baseline
 
     z_t = (s_t - mean) / std                    z-scored counts, 96 channels
     u_t = A z_t + a                             input layer, 96 -> 32
@@ -227,7 +227,7 @@ def main(argv=None) -> dict:
     from neurofalcon import scoring
 
     p = argparse.ArgumentParser(description="Pretrain the GRU on held-in days and score it zero-shot.")
-    p.add_argument("--seeds", type=int, default=3)
+    p.add_argument("--seeds", type=int, default=5)
     p.add_argument("--retrain", action="store_true")
     args = p.parse_args(argv)
     nets = pretrained(args.seeds, args.retrain)
