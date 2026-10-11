@@ -19,6 +19,7 @@ Adaptation methods (the ablation is the comparison between them):
   renorm          re-z-score inputs with the budget's spike statistics (no labels)
   input layer     fine-tune only `inp` (96 -> 32), labels used
   readout         fine-tune only `out` (64 -> 2)
+  renorm + readout  renorm, then fine-tune `out`
   full            fine-tune every weight
   scratch         train a fresh GRU on the budget only (no held-in pretraining)
   Wiener refit    fit a new Wiener filter on the budget only, ridge strength
@@ -43,7 +44,7 @@ BIN_S = 0.02
 BUDGETS_S = (2.5, 5.0, 10.0, 20.0)
 ADAPT_STEPS = 300
 SCRATCH_STEPS = 600  # same as pretraining
-METHODS = ("renorm", "input layer", "readout", "full", "scratch", "Wiener refit")
+METHODS = ("renorm", "renorm + readout", "input layer", "readout", "full", "scratch", "Wiener refit")
 
 
 def _slice(r: Run, a: int, b: int) -> Run:
@@ -93,11 +94,12 @@ def adapt(method: str, base: gru.GRUNet, data: Sequence[Run], seed: int):
     if method == "scratch":
         return gru.fit_gru(data, seed=seed, steps=SCRATCH_STEPS).predict
     net = gru.clone(base)
-    if method == "renorm":
+    if method.startswith("renorm"):
         net.set_input_stats(np.concatenate([r.spikes for r in data]))
-        return net.predict
+        if method == "renorm":
+            return net.predict
     params = {"input layer": net.inp.parameters(), "readout": net.out.parameters(),
-              "full": net.parameters()}[method]
+              "renorm + readout": net.out.parameters(), "full": net.parameters()}[method]
     return gru.train(net, data, params=params, steps=ADAPT_STEPS, lr=1e-3, seed=seed).predict
 
 
@@ -107,27 +109,40 @@ def recalibration_curve(
     budgets_s: Sequence[float] = BUDGETS_S,
     methods: Sequence[str] = METHODS,
     wiener: WienerFilter | None = None,
+    existing: Sequence[dict] = (),
+    on_row: Callable[[list[dict]], None] | None = None,
 ) -> list[dict]:
     """One row per (seed, day, method, budget): {"seed", "day", "method", "budget_s", "r2"}.
 
     `bases` holds one pretrained GRU per seed; `wiener` is the held-in
-    Wiener filter used for its zero-shot row.
+    Wiener filter used for its zero-shot row. Cells already in `existing`
+    are kept and not recomputed; `on_row` gets all rows after each new one
+    (used to checkpoint).
     """
-    rows = []
+    rows = list(existing)
+    done = {(r["seed"], r["day"], r["method"], r["budget_s"]) for r in rows}
+
+    def add(seed, day, method, budget, predict):
+        if (seed, day, method, budget) in done:
+            return
+        r2 = day_r2(predict(), runs)
+        rows.append(dict(seed=seed, day=day, method=method, budget_s=budget, r2=r2))
+        done.add((seed, day, method, budget))
+        print(f"seed {seed} {day} {budget:>4}s {method:<16} R² {r2:+.3f}", flush=True)
+        if on_row:
+            on_row(rows)
+
     for seed, base in enumerate(bases):
         for day, runs in by_day(held_out_runs).items():
-            rows.append(dict(seed=seed, day=day, method="zero-shot", budget_s=0.0, r2=day_r2(base.predict, runs)))
+            add(seed, day, "zero-shot", 0.0, lambda: base.predict)
             if wiener is not None and seed == 0:
-                rows.append(dict(seed=seed, day=day, method="Wiener zero-shot", budget_s=0.0,
-                                 r2=day_r2(wiener.predict, runs)))
+                add(seed, day, "Wiener zero-shot", 0.0, lambda: wiener.predict)
             for b in budgets_s:
                 data = take(pool(runs), b)
                 for m in methods:
                     if m == "Wiener refit" and seed > 0:
                         continue  # deterministic; one seed is enough
-                    r2 = day_r2(adapt(m, base, data, seed), runs)
-                    rows.append(dict(seed=seed, day=day, method=m, budget_s=b, r2=r2))
-                    print(f"seed {seed} {day} {b:>4}s {m:<13} R² {r2:+.3f}", flush=True)
+                    add(seed, day, m, b, lambda: adapt(m, base, data, seed))
     return rows
 
 
@@ -152,8 +167,8 @@ def chart(summary: dict, path) -> None:
 
     ink, muted, surface, grid = "#0b0b0b", "#52514e", "#fcfcfb", "#ecebe7"
     # Fixed categorical order from the reference palette; colour follows the method.
-    colours = {"renorm": "#eda100", "readout": "#1baf7a", "input layer": "#eb6834", "full": "#2a78d6",
-               "Wiener refit": "#4a3aa7", "scratch": "#e87ba4"}  # legend order ≈ top-to-bottom at 20 s
+    colours = {"renorm + readout": "#008300", "renorm": "#eda100", "readout": "#1baf7a", "input layer": "#eb6834",
+               "full": "#2a78d6", "Wiener refit": "#4a3aa7", "scratch": "#e87ba4"}  # legend order ≈ top-to-bottom at 20 s
     fig, ax = plt.subplots(figsize=(7.5, 4.2), dpi=150, facecolor=surface)
     ax.set_facecolor(surface)
     zs = summary["zero-shot"]["0.0"]["mean"]
@@ -192,21 +207,30 @@ def chart(summary: dict, path) -> None:
 
 def main(argv=None) -> dict:
     p = argparse.ArgumentParser(description="Recalibration curve on held-out M2 days.")
-    p.add_argument("--seeds", type=int, default=3)
+    p.add_argument("--seeds", type=int, default=5)
     p.add_argument("--chart-only", action="store_true", help="redraw the chart from results/recalibration.json")
+    p.add_argument("--fresh", action="store_true", help="recompute every cell instead of reusing saved ones")
     args = p.parse_args(argv)
     if args.chart_only:
         result = json.loads((RESULTS / "recalibration.json").read_text())
         chart(result["summary"], RESULTS / "Recalibration Curve.png")
         return result
+    path = RESULTS / "recalibration.json"
+    existing = [] if args.fresh or not path.exists() else json.loads(path.read_text())["rows"]
+    RESULTS.mkdir(exist_ok=True)
+
+    def save(rows):
+        result = {"protocol": "per day: first half of each run = adaptation pool, second half = test; "
+                              "budget = first B seconds of the pool; R² variance-weighted per day, mean over days",
+                  "budgets_s": list(BUDGETS_S), "summary": summarise(rows), "rows": rows}
+        path.write_text(json.dumps(result, indent=2))
+        return result
+
     bases = gru.pretrained(args.seeds)
     rows = recalibration_curve(bases, sessions.load_split("held-out-calib"),
-                               wiener=WienerFilter().fit(sessions.load_split("held-in-calib")))
-    result = {"protocol": "per day: first half of each run = adaptation pool, second half = test; "
-                          "budget = first B seconds of the pool; R² variance-weighted per day, mean over days",
-              "budgets_s": list(BUDGETS_S), "summary": summarise(rows), "rows": rows}
-    RESULTS.mkdir(exist_ok=True)
-    (RESULTS / "recalibration.json").write_text(json.dumps(result, indent=2))
+                               wiener=WienerFilter().fit(sessions.load_split("held-in-calib")),
+                               existing=existing, on_row=save)
+    result = save(rows)
     chart(result["summary"], RESULTS / "Recalibration Curve.png")
     return result
 

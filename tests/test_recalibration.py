@@ -48,3 +48,15 @@ def test_by_day_groups_runs():
     day = two_run_day()
     other = replace(synthetic_run(T=100), key="Run1_20201118")
     assert list(rc.by_day([other, *day])) == ["20201030", "20201118"]
+
+
+def test_existing_cells_are_reused_not_recomputed():
+    from tests.test_gru import small_net
+    day = two_run_day()
+    base = small_net(day[0])
+    saved = dict(seed=0, day="20201030", method="renorm", budget_s=1.0, r2=123.0)
+    rows = rc.recalibration_curve([base], day, budgets_s=(1.0,), methods=("renorm", "renorm + readout"),
+                                  existing=[saved])
+    by_method = {r["method"]: r["r2"] for r in rows}
+    assert by_method["renorm"] == 123.0          # kept
+    assert set(by_method) == {"zero-shot", "renorm", "renorm + readout"}

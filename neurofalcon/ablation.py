@@ -17,13 +17,15 @@ import json
 
 from neurofalcon.scoring import RESULTS
 
-ORDER = ("zero-shot", "Wiener zero-shot", "renorm", "input layer", "readout", "full", "scratch", "Wiener refit")
+ORDER = ("zero-shot", "Wiener zero-shot", "renorm", "renorm + readout", "input layer", "readout", "full",
+         "scratch", "Wiener refit")
 WHAT = {
     "zero-shot": "pretrained GRU, nothing changes",
     "Wiener zero-shot": "held-in Wiener filter, nothing changes",
     "renorm": "re-z-score inputs with the new day's spikes (no labels)",
     "input layer": "fine-tune the 96→32 input layer only",
     "readout": "fine-tune the 64→2 readout only",
+    "renorm + readout": "renorm, then fine-tune the readout",
     "full": "fine-tune every weight",
     "scratch": "fresh GRU trained on the budget only",
     "Wiener refit": "fresh Wiener filter fit on the budget only",
