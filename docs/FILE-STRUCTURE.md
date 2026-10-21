@@ -3,7 +3,6 @@
 ```
 Neuro_falcon/
 ├── README.md                 one-glance overview, chart, links
-├── Neuro_falcon.md           the project brief, deliverables, open questions, changelog
 ├── pyproject.toml            dependencies (FALCON harness pinned to a commit)
 ├── neurofalcon/
 │   ├── download.py           DANDI → slim NWB files in data/ (drops raw voltage)

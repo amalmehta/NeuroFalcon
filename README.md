@@ -23,6 +23,6 @@ flowchart LR
     G --> X[submission/<br/>EvalAI image]
 ```
 
-**Docs:** [Writeup](docs/Writeup.md) · [Setup and use](docs/INSTRUCTIONS.md) · [System design](docs/SYSTEM-DESIGN.md) · [What's where](docs/FILE-STRUCTURE.md) · [Project brief](Neuro_falcon.md)
+**Docs:** [Writeup](docs/Writeup.md) · [Setup and use](docs/INSTRUCTIONS.md) · [System design](docs/SYSTEM-DESIGN.md) · [What's where](docs/FILE-STRUCTURE.md)
 
 **Links:** [FALCON harness](https://github.com/snel-repo/falcon-challenge) · [M2 data on DANDI](https://dandiarchive.org/dandiset/000953) · [EvalAI leaderboard](https://eval.ai/web/challenges/challenge-page/2319/overview)
